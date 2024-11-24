@@ -11,57 +11,55 @@
 
 LiquidCrystal_I2C lcd(0x27,16,2); 
 Si5351 si5351; 
-Rotary r = Rotary(ENCODER_A, ENCODER_B); 
+Rotary encoder = Rotary(ENCODER_A, ENCODER_B); 
 
 // Переменные кнопок PRE/ATT
-int regim = 1;
+int mode = 1;
 int flag = 0; 
 
 // Для кварцевых резонаторов полосового фильтра со значением 8867 МГц.
-//Эти USB/LSB частоты добавляется или вычитается из частоты VFO в "void loop()"
-volatile uint32_t LSB = 50000000ULL; //частота ОГ(гетеродина) для "нижней" боковой. Настр. на ниж. скат КФ.
-volatile uint32_t USB = 50300000ULL; //частота ОГ(гетеродина) для "верхней" боковой. Настр. на вверхн. скат КФ.
-volatile uint32_t bfo = 50000000ULL; // частота второго гетеродина, при старте вкл.верхняя боковая
-volatile uint32_t vfo = 710000000ULL / SI5351_FREQ_MULT;  //стартовая частота при запуске синтезатора.
-volatile uint32_t step = 100000;  // Шаг перестройки по умолчанию при старте = 100 кГц
-boolean changed_f = 0;
-String lsb_usb = "";
+//Эти USB/LSB частоты добавляется или вычитается из частоты VARIABLE_FREQUENCY_OUTPUT в "void loop()"
+volatile uint32_t LSB = 50000000ULL; // частота ОГ(гетеродина) для "нижней" боковой. Настр. на ниж. скат КФ.
+volatile uint32_t USB = 50300000ULL; // частота ОГ(гетеродина) для "верхней" боковой. Настр. на вверхн. скат КФ.
+volatile uint32_t reference_frequency_output = 50000000ULL; // частота опорного гетеродина, при старте вкл.верхняя боковая
+volatile uint32_t variable_frequency_output = 710000000ULL / SI5351_FREQ_MULT;  // Частота ГПД
+volatile uint32_t step_frequency = 100000;  // шаг перестройки по умолчанию при старте = 100 кГц
+boolean changed_f = 0; // Флаг для обновления дисплея при изменении частоты
+String LSB_USB = "";   // Переменная для отображения верхней или нижней боковой
 
 //------------------ Установка дополнительных функций здесь  ---------------------------
-//Удалить коммент (//) для применения нужного варианта. Задействовать только одно.
+// Удалить коммент (//) для применения нужного варианта. Задействовать только одно.
 #define IF_Offset// Показание на ЖКИ плюс(минус) на значение ПЧ
-//#define Direct_conversion // чатота на выходе как на ЖКИ. Прямой выход. Генератор.
-//#define FreqX4  // частота на выходе, умноженная на четыре ...
-//#define FreqX2  // частота на выходе, умноженная на два ...
+// #define Direct_conversion // чатота на выходе как на ЖКИ. Прямой выход. Генератор.
+// #define FreqX4  // частота на выходе, умноженная на четыре ...
+// #define FreqX2  // частота на выходе, умноженная на два ...
 //---------------------------------------------------------------------------------------
 
 // Функция установки частоты
 void set_frequency(short dir)
 {
   if (dir == 1)
-    vfo += step;
+    variable_frequency_output += step_frequency;
   if (dir == -1)
-    vfo -= step;
-
-  if (vfo > F_MAX)
-    vfo = F_MAX;
-  if (vfo < F_MIN)
-    vfo = F_MIN;
-
+    variable_frequency_output -= step_frequency;
+  if (variable_frequency_output > F_MAX)
+    variable_frequency_output = F_MAX;
+  if (variable_frequency_output < F_MIN)
+    variable_frequency_output = F_MIN;
   changed_f = 1;
 }
 
 // Установка частоты по сигналу энкодера через прерывание
 ISR(PCINT2_vect) 
 {
-  unsigned char result = r.process();
+  unsigned char result = encoder.process();
   if (result == DIR_CW)
     set_frequency(1);
   else if (result == DIR_CCW)
     set_frequency(-1);
 }
 
-//Читаем кнопку энкодера
+//Функция чтения кнопки энкодера,возвращает true если нажата
 boolean get_button()
 {
   if (!digitalRead(ENCODER_BTN))
@@ -76,24 +74,23 @@ boolean get_button()
   return 0;
 }
 
-
  //Функция вывода значения частоты на дисплей
 void display_frequency()
 {
   uint16_t frequency;
   lcd.setCursor(3, 0);
-  frequency = vfo / 1000000;
+  frequency = variable_frequency_output / 1000000;
     lcd.print(' ');
   lcd.print(frequency);
   lcd.print('.');
-  frequency = (vfo % 1000000) / 1000;
+  frequency = (variable_frequency_output % 1000000) / 1000;
   if (frequency < 100)
     lcd.print('0');
   if (frequency < 10)
     lcd.print('0');
   lcd.print(frequency);
   lcd.print('.');
-  frequency = vfo % 1000;
+  frequency = variable_frequency_output % 1000;
   if (frequency < 100)
     lcd.print('0');
   if (frequency < 10)
@@ -101,8 +98,8 @@ void display_frequency()
   lcd.print(frequency);
   lcd.print("Hz ");
   lcd.setCursor(0, 1);
-  lcd.print(lsb_usb);
-  //Serial.println(vfo + bfo);
+  lcd.print(LSB_USB);
+  //Serial.println(variable_frequency_output + reference_frequency_output);
   //Serial.println(tbfo);
 }
 
@@ -110,7 +107,7 @@ void display_frequency()
 void display_step()
 {
   lcd.setCursor(9, 1);
-  switch (step)
+  switch (step_frequency)
   {
     case 1:
       lcd.print("    1");
@@ -139,17 +136,16 @@ void display_step()
   lcd.print("Hz");
 }
 
-
+//Статические становки перед запуском основного цикла
 void setup() {
-
   lcd.init();
   lcd.backlight();
   PCICR |= (1 << PCIE2);
   PCMSK2 |= (1 << PCINT18) | (1 << PCINT19);
   sei();
   Serial.begin(19200);
-  lcd .begin(16, 2);   
-  lcd .clear();
+  lcd.begin(16, 2);   
+  lcd.clear();
   Wire.begin();
   int32_t correction = 10000; // Значение коррекции частоты синтезатора
   si5351.set_correction(correction, SI5351_PLL_INPUT_XO);
@@ -158,26 +154,27 @@ void setup() {
 
   // Установка выходной частоты в соответствии с доп.настройами (см.выше)
 #ifdef IF_Offset
-  si5351.set_freq((vfo * SI5351_FREQ_MULT) + bfo, SI5351_CLK0);
-  //volatile uint32_t vfoT = (vfo * SI5351_FREQ_MULT) + bfo;
-  lsb_usb = "USB";
-  // Set CLK2 to output bfo frequency
-  si5351.set_freq( bfo,SI5351_CLK2);
+  si5351.set_freq((variable_frequency_output* SI5351_FREQ_MULT) + reference_frequency_output, SI5351_CLK0);
+  //volatile uint32_t vfoT = (variable_frequency_output * SI5351_FREQ_MULT) + reference_frequency_output;
+  LSB_USB = "USB";
+  // Set CLK2 to output reference_frequency_output
+  si5351.set_freq( reference_frequency_output
+,SI5351_CLK2);
   //si5351.drive_strength(SI5351_CLK0,SI5351_DRIVE_2MA); //you can set this to 2MA, 4MA, 6MA or 8MA
   //si5351.drive_strength(SI5351_CLK1,SI5351_DRIVE_2MA); //be careful though - measure into 50ohms
   //si5351.drive_strength(SI5351_CLK2,SI5351_DRIVE_2MA); //
 #endif
 
 #ifdef Direct_conversion
-  si5351.set_freq((vfo * SI5351_FREQ_MULT),SI5351_CLK0);
+  si5351.set_freq((variable_frequency_output* SI5351_FREQ_MULT),SI5351_CLK0);
 #endif
 
 #ifdef FreqX4
-  si5351.set_freq((vfo * SI5351_FREQ_MULT) * 4,SI5351_CLK0);
+  si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT) * 4,SI5351_CLK0);
 #endif
 
 #ifdef FreqX2
-  si5351.set_freq((vfo * SI5351_FREQ_MULT) * 2, SI5351_CLK0);
+  si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT) * 2, SI5351_CLK0);
 #endif
 
   pinMode(ENCODER_BTN, INPUT_PULLUP);
@@ -198,46 +195,45 @@ void setup() {
 //ГЛАВНЫЙ ЦИКЛ
 void loop(){
 
-int keypressed;
-
   // Обновление дисплея если частота изменена
 if (changed_f)
   {
     display_frequency();
 
 #ifdef IF_Offset
-    si5351.set_freq((vfo * SI5351_FREQ_MULT) + bfo, SI5351_CLK0);
+    si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT) + reference_frequency_output, SI5351_CLK0);
 
-    if (vfo >= 10000000ULL & lsb_usb != "USB")
+    if (variable_frequency_output >= 10000000ULL && LSB_USB != "USB")
     {
-      bfo = USB;
-      lsb_usb = "USB";
-      si5351.set_freq( bfo, SI5351_CLK2);
+      reference_frequency_output = USB;
+      LSB_USB = "USB";
+      si5351.set_freq( reference_frequency_output, SI5351_CLK2);
       Serial.println("We've switched from LSB to USB");
     }
-    else if (vfo < 10000000ULL & lsb_usb != "LSB")
+    else if (variable_frequency_output < 10000000ULL && LSB_USB != "LSB")
     {
-      bfo = LSB;
-      lsb_usb = "LSB";
-      si5351.set_freq( bfo,SI5351_CLK2);
+      reference_frequency_output = LSB;
+      LSB_USB = "LSB";
+      si5351.set_freq( reference_frequency_output
+,SI5351_CLK2);
       Serial.println("We've switched from USB to LSB");
     }
 
 #endif
 
 #ifdef Direct_conversion
-    si5351.set_freq((vfo * SI5351_FREQ_MULT), SI5351_CLK0);
-    lsb_usb = "";
+    si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT), SI5351_CLK0);
+    LSB_USB = "";
 #endif
 
 #ifdef FreqX4
-    si5351.set_freq((vfo * SI5351_FREQ_MULT) * 4, SI5351_CLK0);
-    lsb_usb = "";
+    si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT) * 4, SI5351_CLK0);
+    LSB_USB = "";
 #endif
 
 #ifdef FreqX2
-    si5351.set_freq((vfo * SI5351_FREQ_MULT) * 2, SI5351_CLK0);
-    lsb_usb = "";
+    si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT) * 2, SI5351_CLK0);
+    LSB_USB = "";
 #endif
 
     changed_f = 0;
@@ -247,15 +243,15 @@ if (changed_f)
   {
     if (digitalRead(4) == HIGH && flag == 0) 
       {
-        regim++;
+        mode++;
         flag = 1;
       //это нужно для того что бы с каждым нажатием кнопки
       //происходило только одно действие
       // плюс защита от "дребезга"  100%
 
-      if (regim > 4) //ограничим количество режимов
+      if (mode > 4) //ограничим количество режимов
         {
-          regim = 1; //так как мы используем только одну кнопку,
+          mode = 1; //так как мы используем только одну кнопку,
           // то переключать режимы будем циклично
       }
 
@@ -266,7 +262,7 @@ if (changed_f)
       flag = 0; //обнуляем переменную "knopka"
     }
 
-    if (regim == 1) //первый режим - очистка экрана
+    if (mode == 1) //первый режим - очистка экрана
     {
       digitalWrite(12, LOW); // на пине нулевой уровень
       digitalWrite(13, LOW);
@@ -275,7 +271,7 @@ if (changed_f)
 
       //здесь может быть любое ваше действие
     }
-    if (regim == 2) //второй режим  - вкл. УВЧ
+    if (mode == 2) //второй режим  - вкл. УВЧ
     {
       digitalWrite(12, LOW); //включает PRE
       digitalWrite(13, HIGH);
@@ -285,7 +281,7 @@ if (changed_f)
       //здесь может быть любое ваше действие
     }
 
-    if (regim == 3) //третий режим - очистка экрана
+    if (mode == 3) //третий режим - очистка экрана
     {
       digitalWrite(12, LOW); //
       digitalWrite(13, LOW);
@@ -294,7 +290,7 @@ if (changed_f)
 
       //здесь может быть любое ваше действие
     }
-    if (regim == 4) //третий режим - вкл. АТТ
+    if (mode == 4) //третий режим - вкл. АТТ
     {
       digitalWrite(12, HIGH); //включает АТТ
       digitalWrite(13, LOW);
@@ -318,7 +314,7 @@ if (changed_f)
     //---00-00-00-11-----10m
 
     // Band 160
-    if (vfo >= 1000000ULL && vfo <= 3000000ULL)
+    if (variable_frequency_output >= 1000000ULL && variable_frequency_output <= 3000000ULL)
     {
       digitalWrite(14, LOW); // на пине нулевой уровень
       digitalWrite(15, LOW); // на пине нулевой уровень
@@ -327,7 +323,7 @@ if (changed_f)
     }
 
     // Band 80
-    if (vfo >= 3000001ULL && vfo <= 5000000ULL)
+    if (variable_frequency_output >= 3000001ULL && variable_frequency_output <= 5000000ULL)
     {
       digitalWrite(14, HIGH); // на пине высокий уровень
       digitalWrite(15, LOW); // на пине нулевой уровень
@@ -335,7 +331,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 40
-    if (vfo >= 5000001ULL && vfo <= 8000000ULL)
+    if (variable_frequency_output >= 5000001ULL && variable_frequency_output <= 8000000ULL)
     {
       digitalWrite(14, LOW); // на пине нулевой уровень
       digitalWrite(15, HIGH); // на пине высокий уровень
@@ -343,7 +339,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 30
-    if (vfo >= 8000001ULL && vfo <= 120000000ULL)
+    if (variable_frequency_output >= 8000001ULL && variable_frequency_output <= 120000000ULL)
     {
       digitalWrite(14, HIGH); // на пине высокий уровень
       digitalWrite(15, HIGH); // на пине высокий уровень
@@ -351,7 +347,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 20
-    if (vfo >= 12000001ULL && vfo <= 15000000ULL)
+    if (variable_frequency_output >= 12000001ULL && variable_frequency_output <= 15000000ULL)
     {
       digitalWrite(14, LOW); // на пине нулевой уровень
       digitalWrite(15, LOW); // на пине нулевой уровень
@@ -359,7 +355,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 17
-    if (vfo >= 15000001ULL && vfo <= 19000000ULL)
+    if (variable_frequency_output >= 15000001ULL && variable_frequency_output <= 19000000ULL)
     {
       digitalWrite(14, HIGH); // на пине высокий уровень
       digitalWrite(15, LOW); // на пине нулевой уровень
@@ -367,7 +363,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 15
-    if (vfo >= 19000001ULL && vfo <= 23000000ULL)
+    if (variable_frequency_output >= 19000001ULL && variable_frequency_output <= 23000000ULL)
     {
       digitalWrite(14, LOW); // на пине нулевой уровень
       digitalWrite(15, HIGH); // на пине высокий уровень
@@ -375,7 +371,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 12
-    if (vfo >= 23000001ULL && vfo <= 26000000ULL)
+    if (variable_frequency_output >= 23000001ULL && variable_frequency_output <= 26000000ULL)
     {
       digitalWrite(14, HIGH); // на пине высокий уровень
       digitalWrite(15, HIGH); // на пине высокий уровень
@@ -383,7 +379,7 @@ if (changed_f)
       digitalWrite(17, LOW); // на пине нулевой уровень
     }
     // Band 10
-    if (vfo >= 26000001ULL && vfo <= 30000000ULL)
+    if (variable_frequency_output >= 26000001ULL && variable_frequency_output <= 30000000ULL)
     {
       digitalWrite(14, LOW); // на пине нулевой уровень
       digitalWrite(15, LOW); // на пине нулевой уровень
@@ -393,63 +389,63 @@ if (changed_f)
 
     // HAM BAND ----- Границы диапазонов ---------
     // 160-метровый (1,81 - 2 МГц)
-    if (vfo >= 1810000ULL && vfo <= 2000000ULL)
+    if (variable_frequency_output >= 1810000ULL && variable_frequency_output <= 2000000ULL)
     {
       lcd.setCursor(0, 1);
       lcd.print("160m");
     }
     else
       // 80-метровый (3,5 - 3,8 МГц)
-      if (vfo >= 3500000ULL && vfo <= 3800000ULL)
+      if (variable_frequency_output >= 3500000ULL && variable_frequency_output <= 3800000ULL)
       {
         lcd.setCursor(0, 1);
         lcd.print("80m ");
       }
       else
         // 40-метровый (7 - 7,2 МГц)
-        if (vfo >= 7000000ULL && vfo <= 7200000ULL)
+        if (variable_frequency_output >= 7000000ULL && variable_frequency_output <= 7200000ULL)
         {
           lcd.setCursor(0, 1);
           lcd.print("40m ");
         }
         else
           // 30-метровый (только телеграф 10,1 - 10,15 МГц)
-          if (vfo >= 10100000ULL && vfo <= 10150000ULL)
+          if (variable_frequency_output >= 10100000ULL && variable_frequency_output <= 10150000ULL)
           {
             lcd.setCursor(0, 1);
             lcd.print("30m ");
           }
           else
             // 20-метровый (14 - 14,35 МГц)
-            if (vfo >= 14000000ULL && vfo <= 14350000ULL)
+            if (variable_frequency_output >= 14000000ULL && variable_frequency_output <= 14350000ULL)
             {
               lcd.setCursor(0, 1);
               lcd.print("20m ");
             }
             else
               // 17-метровый (18,068 - 18,168 МГц)
-              if (vfo >= 18068000ULL && vfo <= 18168000ULL)
+              if (variable_frequency_output >= 18068000ULL && variable_frequency_output <= 18168000ULL)
               {
                 lcd.setCursor(0, 1);
                 lcd.print("17m ");
               }
               else
                 // 15-метровый (21 - 21,45 МГц)
-                if (vfo >= 21000000ULL && vfo <= 21450000ULL)
+                if (variable_frequency_output >= 21000000ULL && variable_frequency_output <= 21450000ULL)
                 {
                   lcd.setCursor(0, 1);
                   lcd.print("15m ");
                 }
                 else
                   // 12-метровый (24,89 - 25,14 МГц)
-                  if (vfo >= 24890000ULL && vfo <= 25140000ULL)
+                  if (variable_frequency_output >= 24890000ULL && variable_frequency_output <= 25140000ULL)
                   {
                     lcd.setCursor(0, 1);
                     lcd.print("12m ");
                   }
                   else
                     // 10-метровый (28 - 29,7 МГц)
-                    if (vfo >= 28000000ULL && vfo <= 29700000ULL)
+                    if (variable_frequency_output >= 28000000ULL && variable_frequency_output <= 29700000ULL)
                     {
                       lcd.setCursor(0, 1);
                       lcd.print("10m ");
@@ -464,28 +460,28 @@ if (changed_f)
     // Нажатие кнопки изменяет шаг изменения частоты
     if (get_button())
     {
-      switch (step)
+      switch (step_frequency)
       {
         case 1:
-          step = 10;
+          step_frequency = 10;
           break;
         case 10:
-          step = 100;
+          step_frequency = 100;
           break;
         case 100:
-          step = 1000;
+          step_frequency = 1000;
           break;
         case 1000:
-          step = 10000;
+          step_frequency = 10000;
           break;
         case 10000:
-          step = 100000;
+          step_frequency = 100000;
           break;
         case 100000:
-          step = 1000000;
+          step_frequency = 1000000;
           break;
         case 1000000:
-          step = 1;
+          step_frequency = 1;
           break;
       }
       display_step();
