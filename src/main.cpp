@@ -93,8 +93,7 @@ void display_frequency()
   lcd.print("Hz ");
   lcd.setCursor(0, 1);
   lcd.print(LSB_USB);
-  //Serial.println(variable_frequency_output + reference_frequency_output);
-  //Serial.println(tbfo);
+
 }
 
 void display_step()
