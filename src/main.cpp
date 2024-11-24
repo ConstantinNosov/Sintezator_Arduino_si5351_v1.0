@@ -12,16 +12,12 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 Si5351 si5351; 
 Rotary encoder = Rotary(ENCODER_A, ENCODER_B); 
 
-//Вспомогательные переменные кнопок PRE/ATT
-int mode = 1;
-int flag = 0; 
-
 volatile uint32_t variable_frequency_output = 710000000ULL / SI5351_FREQ_MULT;  // Частота ГПД
 volatile uint32_t reference_frequency_output = 50000000ULL; // частота опорного генератора, при старте вкл.верхняя боковая
 volatile uint32_t LSB = 50000000ULL; // частота ОГ для "нижней" боковой. Настр. на ниж. скат КФ.
 volatile uint32_t USB = 50300000ULL; // частота ОГ для "верхней" боковой. Настр. на вверхн. скат КФ.
 volatile uint32_t step_frequency = 100000;  // шаг перестройки, по умолчанию, при старте = 100 кГц
-boolean is_frequency_changed = 0; // Флаг для обновления дисплея при изменении частоты
+boolean is_frequency_changed = 0; // Флаг изменения частоты
 String LSB_USB = "";   // Переменная для отображения верхней или нижней боковой
 
 //------------------ Установка дополнительных функций здесь  ---------------------------
@@ -47,7 +43,6 @@ void set_frequency(short direction_frequency)
   is_frequency_changed = 1;
 }
 
-
 ISR(PCINT2_vect) 
 // Функция установки частоты по сигналу энкодера через прерывание
 {
@@ -57,7 +52,6 @@ ISR(PCINT2_vect)
   else if (encoder_direction == DIR_CCW)
     set_frequency(-1);
 }
-
 
 boolean get_button()
 //Функция чтения кнопки энкодера,возвращает true если нажата
@@ -73,7 +67,6 @@ boolean get_button()
   }
   return 0;
 }
-
 
 void display_frequency()
  //Функция вывода значения частоты на дисплей
@@ -103,7 +96,6 @@ void display_frequency()
   //Serial.println(variable_frequency_output + reference_frequency_output);
   //Serial.println(tbfo);
 }
-
 
 void display_step()
 //Функция отображения шага частоты
@@ -138,10 +130,9 @@ void display_step()
   lcd.print("Hz");
 }
 
-
 void setup()
 // ------------------Статические установки перед запуском основного цикла------------------------------
- { 
+{ 
   lcd.init();
   lcd.backlight();
   PCICR |= (1 << PCIE2);
@@ -151,7 +142,7 @@ void setup()
   lcd.begin(16, 2);   
   lcd.clear();
   Wire.begin();
-  int32_t correction = 10000; // Значение коррекции частоты синтезатора
+  int32_t correction = 100000; // Значение коррекции частоты синтезатора
   si5351.set_correction(correction, SI5351_PLL_INPUT_XO);
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, 25000000, 0);  // 8pF для кристалла, 25 МГц частота, 0 коррекция
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
@@ -187,7 +178,6 @@ void setup()
   pinMode(17, OUTPUT); // b3 для C
 
 }
-
 
 void loop()
   // ------------------------------ГЛАВНЫЙ ЦИКЛ------------------------------
@@ -360,8 +350,6 @@ void loop()
       }
     display_step();
     }
-
-
 }
 
 
