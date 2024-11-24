@@ -18,7 +18,7 @@ volatile uint32_t LSB = 50000000ULL; // частота ОГ для "нижней
 volatile uint32_t USB = 50300000ULL; // частота ОГ для "верхней" боковой. Настр. на вверхн. скат КФ.
 volatile uint32_t step_frequency = 100000;  // шаг перестройки, по умолчанию, при старте = 100 кГц
 boolean is_frequency_changed = 0; // Флаг изменения частоты
-String LSB_USB = "";   // Переменная для отображения верхней или нижней боковой
+String LSB_USB = "LSB"; // Переменная для отображения верхней или нижней боковой
 
 //------------------ Установка дополнительных функций здесь  ---------------------------
 // Удалить коммент (//) для применения нужного варианта. Задействовать только одно.
@@ -91,7 +91,7 @@ void display_frequency()
     lcd.print('0');
   lcd.print(frequency);
   lcd.print("Hz ");
-  lcd.setCursor(0, 1);
+  lcd.setCursor(0, 0);
   lcd.print(LSB_USB);
 
 }
@@ -295,30 +295,6 @@ void loop()
       digitalWrite(16, LOW); 
       digitalWrite(17, HIGH); 
     }
-
-  // -------------------Автоматическое отображение диапазона на дисплее-----------------------------
-  lcd.setCursor(0, 1);
-  if (variable_frequency_output >= 1810000ULL && variable_frequency_output <= 2000000ULL) {
-    lcd.print("160m");
-  } else if (variable_frequency_output >= 3500000ULL && variable_frequency_output <= 3800000ULL) {
-    lcd.print("80m ");
-  } else if (variable_frequency_output >= 7000000ULL && variable_frequency_output <= 7200000ULL) {
-    lcd.print("40m ");
-  } else if (variable_frequency_output >= 10100000ULL && variable_frequency_output <= 10150000ULL) {
-    lcd.print("30m ");
-  } else if (variable_frequency_output >= 14000000ULL && variable_frequency_output <= 14350000ULL) {
-    lcd.print("20m ");
-  } else if (variable_frequency_output >= 18068000ULL && variable_frequency_output <= 18168000ULL) {
-    lcd.print("17m ");
-  } else if (variable_frequency_output >= 21000000ULL && variable_frequency_output <= 21450000ULL) {
-    lcd.print("15m ");
-  } else if (variable_frequency_output >= 24890000ULL && variable_frequency_output <= 25140000ULL) {
-    lcd.print("12m ");
-  } else if (variable_frequency_output >= 28000000ULL && variable_frequency_output <= 29700000ULL) {
-    lcd.print("10m ");
-  } else {
-    lcd.print("    ");
-  }
 
     // ------------------Установка шага перестройки частоты по сигналу кнопки-----------------
   if (get_button())
