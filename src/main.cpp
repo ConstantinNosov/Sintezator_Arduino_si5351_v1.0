@@ -254,7 +254,7 @@ void loop()
   int smoothedSignal = getSmoothedSignal();
   int filledHalves = map(smoothedSignal, 0, maxSignalValue, 0, 16); //кол-во элементов 
   lcd.setCursor(2, 1); 
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 8; i++) {
     if (filledHalves >= 2) {
       lcd.write(byte(2)); // Полностью заполненный символ
       filledHalves -= 2;
@@ -262,7 +262,7 @@ void loop()
       lcd.write(byte(0)); // Только левая половина
       filledHalves -= 1;
     } else {
-      lcd.print(' '); // Пустое пространство
+      lcd.write(' '); // Пустое пространство
     }
   }
 
