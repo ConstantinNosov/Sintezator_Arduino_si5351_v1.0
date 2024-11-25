@@ -39,34 +39,34 @@ int bufferIndex = 0;
 
 // Создание символов
 byte leftHalf[8] = {
+  0b00000,
   0b11000,
   0b11000,
   0b11000,
   0b11000,
   0b11000,
   0b11000,
-  0b11000,
-  0b11000
+  0b00000
 };
 byte rightHalf[8] = {
+  0b00000,
   0b00011,
   0b00011,
   0b00011,
   0b00011,
   0b00011,
   0b00011,
-  0b00011,
-  0b00011
+  0b00000
 };
 byte fullBlock[8] = {
+  0b00000,
   0b11011,
   0b11011,
   0b11011,
   0b11011,
   0b11011,
   0b11011,
-  0b11011,
-  0b11011
+  0b00000
 };
 
 
@@ -186,16 +186,7 @@ int getSmoothedSignal()
 }
 
 void setup()
-{ 
-  // Загрузка пользовательских символов s-метра
-  lcd.createChar(0, leftHalf);
-  lcd.createChar(1, rightHalf);
-  lcd.createChar(2, fullBlock);
-  // Инициализация сглаживающего буфера s-метра
-  for (int i = 0; i < smoothingWindowSize; i++) {
-    smoothingBuffer[i] = 0;
-  }
-
+{
   lcd.init();
   lcd.backlight();
   PCICR |= (1 << PCIE2);
@@ -247,11 +238,8 @@ void setup()
   lcd.createChar(0, leftHalf);
   lcd.createChar(1, rightHalf);
   lcd.createChar(2, fullBlock);
-
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Signal Level:");
-
+  lcd.setCursor(0, 1);
+  lcd.print("S-");
   // Инициализация сглаживающего буфера
   for (int i = 0; i < smoothingWindowSize; i++) {
     smoothingBuffer[i] = 0;
@@ -261,6 +249,22 @@ void setup()
 void loop()
   // ------------------------------ГЛАВНЫЙ ЦИКЛ------------------------------
 {
+  //---------------------s-метр--------------------------
+
+  int smoothedSignal = getSmoothedSignal();
+  int filledHalves = map(smoothedSignal, 0, maxSignalValue, 0, 16); //кол-во элементов 
+  lcd.setCursor(2, 1); 
+  for (int i = 0; i < 16; i++) {
+    if (filledHalves >= 2) {
+      lcd.write(byte(2)); // Полностью заполненный символ
+      filledHalves -= 2;
+    } else if (filledHalves == 1) {
+      lcd.write(byte(0)); // Только левая половина
+      filledHalves -= 1;
+    } else {
+      lcd.print(' '); // Пустое пространство
+    }
+  }
 
   // --------Установка выходных частот синтезатора и отображение режима LSB/USB----------
 
@@ -406,22 +410,6 @@ void loop()
     display_step();
     }
 
-//---------------------s-метр--------------------------
-
-  int smoothedSignal = getSmoothedSignal();
-  int filledHalves = map(smoothedSignal, 0, maxSignalValue, 0, 10); //кол-во элементов 
-  lcd.setCursor(1, 1); 
-  for (int i = 0; i < 16; i++) {
-    if (filledHalves >= 2) {
-      lcd.write(byte(2)); // Полностью заполненный символ
-      filledHalves -= 2;
-    } else if (filledHalves == 1) {
-      lcd.write(byte(0)); // Только левая половина
-      filledHalves -= 1;
-    } else {
-      lcd.write(' '); // Пустое пространство
-    }
-  }
 }
 
 
