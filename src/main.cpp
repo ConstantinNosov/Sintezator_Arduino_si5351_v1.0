@@ -6,7 +6,8 @@
 #define FREQUENCY_MAX 14350000L // 14.3500_Мгц            
 #define ENCODER_A    3                      
 #define ENCODER_B    2   
-#define ENCODER_BTN  11          
+#define ENCODER_BTN  11
+
 
 LiquidCrystal_I2C lcd(0x27,16,2); 
 Si5351 si5351; 
@@ -27,6 +28,46 @@ String LSB_USB = "LSB"; // Переменная для отображения в
 // #define FreqX4  // частота на выходе, умноженная на четыре ...
 // #define FreqX2  // частота на выходе, умноженная на два ...
 //---------------------------------------------------------------------------------------
+
+//-----------------------------S-метр--------------------------------------
+
+const int signalPin = A0; // вход ЦАП
+const int maxSignalValue = 1023; // максимальное значение сигнала (например, для 10-битного АЦП — 1023)
+const int smoothingWindowSize = 10; // сглаживание
+int smoothingBuffer[smoothingWindowSize]; // Массив для хранения последних измерений
+int bufferIndex = 0;
+
+// Создание символов
+byte leftHalf[8] = {
+  0b11000,
+  0b11000,
+  0b11000,
+  0b11000,
+  0b11000,
+  0b11000,
+  0b11000,
+  0b11000
+};
+byte rightHalf[8] = {
+  0b00011,
+  0b00011,
+  0b00011,
+  0b00011,
+  0b00011,
+  0b00011,
+  0b00011,
+  0b00011
+};
+byte fullBlock[8] = {
+  0b11011,
+  0b11011,
+  0b11011,
+  0b11011,
+  0b11011,
+  0b11011,
+  0b11011,
+  0b11011
+};
 
 
 void set_frequency(short direction_frequency)
@@ -127,11 +168,34 @@ void display_step()
       break;
   }
   lcd.print("Hz");
+
+}
+
+int getSmoothedSignal()
+// Функция сглаживания для s-метра
+ {
+  int rawValue = analogRead(signalPin);
+  smoothingBuffer[bufferIndex] = rawValue;
+  bufferIndex = (bufferIndex + 1) % smoothingWindowSize;
+  long sum = 0;
+  for (int i = 0; i < smoothingWindowSize; i++) {
+    sum += smoothingBuffer[i];
+  }
+  return sum / smoothingWindowSize;
+
 }
 
 void setup()
-// ------------------Статические установки перед запуском основного цикла------------------------------
 { 
+  // Загрузка пользовательских символов s-метра
+  lcd.createChar(0, leftHalf);
+  lcd.createChar(1, rightHalf);
+  lcd.createChar(2, fullBlock);
+  // Инициализация сглаживающего буфера s-метра
+  for (int i = 0; i < smoothingWindowSize; i++) {
+    smoothingBuffer[i] = 0;
+  }
+
   lcd.init();
   lcd.backlight();
   PCICR |= (1 << PCIE2);
@@ -145,6 +209,7 @@ void setup()
   si5351.set_correction(correction, SI5351_PLL_INPUT_XO);
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, 25000000, 0);  // 8pF для кристалла, 25 МГц частота, 0 коррекция
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
+
 
   // Установка выходной частоты в соответствии с доп.настройами (см.выше)
   #ifdef IF_Offset
@@ -176,6 +241,21 @@ void setup()
   pinMode(16, OUTPUT); // b2 для D
   pinMode(17, OUTPUT); // b3 для C
 
+
+//-----------------S-метр-------------------
+   // Загрузка пользовательских символов
+  lcd.createChar(0, leftHalf);
+  lcd.createChar(1, rightHalf);
+  lcd.createChar(2, fullBlock);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Signal Level:");
+
+  // Инициализация сглаживающего буфера
+  for (int i = 0; i < smoothingWindowSize; i++) {
+    smoothingBuffer[i] = 0;
+  }
 }
 
 void loop()
@@ -325,6 +405,25 @@ void loop()
       }
     display_step();
     }
+
+//---------------------s-метр--------------------------
+
+  int smoothedSignal = getSmoothedSignal();
+  int filledHalves = map(smoothedSignal, 0, maxSignalValue, 0, 10); //кол-во элементов 
+  lcd.setCursor(1, 1); 
+  for (int i = 0; i < 16; i++) {
+    if (filledHalves >= 2) {
+      lcd.write(byte(2)); // Полностью заполненный символ
+      filledHalves -= 2;
+    } else if (filledHalves == 1) {
+      lcd.write(byte(0)); // Только левая половина
+      filledHalves -= 1;
+    } else {
+      lcd.write(' '); // Пустое пространство
+    }
+  }
 }
+
+
 
 
