@@ -6,7 +6,7 @@
 #define FREQUENCY_MAX 14350000L // 14.3500_Мгц            
 #define ENCODER_A    3                      
 #define ENCODER_B    2   
-#define ENCODER_BTN  11
+#define ENCODER_BTN  4
 
 LiquidCrystal_I2C lcd(0x27,16,2); 
 Si5351 si5351; 
