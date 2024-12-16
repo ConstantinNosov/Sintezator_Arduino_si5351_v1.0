@@ -303,79 +303,32 @@ void loop()
     is_frequency_changed = 0;
   }
 
-  //-------Автоматическое управление диапазонным фильтром с помощью дешифратора CD4028-----------
-    // Band 160
-  if (variable_frequency_output >= 1000000ULL && variable_frequency_output <= 3000000ULL)
-    {
-      digitalWrite(14, LOW); 
-      digitalWrite(15, LOW); 
-      digitalWrite(16, LOW); 
-      digitalWrite(17, LOW);  
-    }
+  //-------Автоматическое управление диапазонным фильтром
+
     // Band 80
   if (variable_frequency_output >= 3000001ULL && variable_frequency_output <= 5000000ULL)
     {
-      digitalWrite(14, HIGH); 
-      digitalWrite(15, LOW); 
-      digitalWrite(16, LOW); 
-      digitalWrite(17, LOW); 
+      digitalWrite(5, HIGH); 
+      digitalWrite(6, LOW); 
+      digitalWrite(7, LOW); 
     }
     // Band 40
     if (variable_frequency_output >= 5000001ULL && variable_frequency_output <= 8000000ULL)
     {
-      digitalWrite(14, LOW); 
-      digitalWrite(15, HIGH); 
-      digitalWrite(16, LOW); 
-      digitalWrite(17, LOW); 
+      digitalWrite(5, LOW); 
+      digitalWrite(6, HIGH); 
+      digitalWrite(7, LOW); 
     }
-    // Band 30
-    if (variable_frequency_output >= 8000001ULL && variable_frequency_output <= 120000000ULL)
-    {
-      digitalWrite(14, HIGH); 
-      digitalWrite(15, HIGH); 
-      digitalWrite(16, LOW); 
-      digitalWrite(17, LOW); 
-    }
+ 
     // Band 20
     if (variable_frequency_output >= 12000001ULL && variable_frequency_output <= 15000000ULL)
     {
-      digitalWrite(14, LOW); 
-      digitalWrite(15, LOW); 
-      digitalWrite(16, HIGH); 
-      digitalWrite(17, LOW); 
+      digitalWrite(5, LOW); 
+      digitalWrite(6, LOW); 
+      digitalWrite(7, HIGH); 
     }
-    // Band 17
-    if (variable_frequency_output >= 15000001ULL && variable_frequency_output <= 19000000ULL)
-    {
-      digitalWrite(14, HIGH); 
-      digitalWrite(15, LOW); 
-      digitalWrite(16, HIGH); 
-      digitalWrite(17, LOW); 
-    }
-    // Band 15
-    if (variable_frequency_output >= 19000001ULL && variable_frequency_output <= 23000000ULL)
-    {
-      digitalWrite(14, LOW); 
-      digitalWrite(15, HIGH); 
-      digitalWrite(16, HIGH); 
-      digitalWrite(17, LOW); 
-    }
-    // Band 12
-    if (variable_frequency_output >= 23000001ULL && variable_frequency_output <= 26000000ULL)
-    {
-      digitalWrite(14, HIGH); 
-      digitalWrite(15, HIGH); 
-      digitalWrite(16, HIGH); 
-      digitalWrite(17, LOW); 
-    }
-    // Band 10
-    if (variable_frequency_output >= 26000001ULL && variable_frequency_output <= 30000000ULL)
-    {
-      digitalWrite(14, LOW); 
-      digitalWrite(15, LOW); 
-      digitalWrite(16, LOW); 
-      digitalWrite(17, HIGH); 
-    }
+  
+    
 
   //------------------Установка шага перестройки частоты по сигналу кнопки----------------------//
   if (get_button())
