@@ -12,10 +12,10 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 Si5351 si5351; 
 Rotary encoder = Rotary(ENCODER_A, ENCODER_B); 
 
-volatile uint32_t variable_frequency_output = 710000000ULL / SI5351_FREQ_MULT;  // Частота ГПД
-volatile uint32_t reference_frequency_output = 886723800ULL; // частота опорного генератора, при старте вкл.верхняя боковая
-volatile uint32_t LSB = 886723800ULL; // частота ОГ для "нижней" боковой. Настр. на ниж. скат КФ.
-volatile uint32_t USB = 886723800ULL; // частота ОГ для "верхней" боковой. Настр. на вверхн. скат КФ.
+volatile uint32_t variable_frequency_output = 1000000000ULL / SI5351_FREQ_MULT;  // Частота ГПД
+volatile uint32_t reference_frequency_output = 000000000ULL; // частота опорного генератора.
+volatile uint32_t LSB = 000000000ULL; // частота ОГ для "нижней" боковой. Настр. на ниж. скат КФ.
+volatile uint32_t USB = 000000000ULL; // частота ОГ для "верхней" боковой. Настр. на вверхн. скат КФ.
 volatile uint32_t step_frequency = 100000;  // шаг перестройки, по умолчанию, при старте = 100 кГц
 boolean is_frequency_changed = 0; // Флаг изменения частоты
 String LSB_USB = "LSB"; // Переменная для отображения верхней или нижней боковой
@@ -191,18 +191,15 @@ void setup()
   PCICR |= (1 << PCIE2);
   PCMSK2 |= (1 << PCINT18) | (1 << PCINT19);
   sei();
-  Serial.begin(19200);
   lcd.begin(16, 2);   
   lcd.clear();
   Wire.begin();
-  int32_t correction = 100000; // Значение коррекции частоты синтезатора
-  si5351.set_correction(correction, SI5351_PLL_INPUT_XO);
-  si5351.init(SI5351_CRYSTAL_LOAD_8PF, 25000000, 0);  // 8pF для кристалла, 25 МГц частота, 0 коррекция
+  si5351.init(SI5351_CRYSTAL_LOAD_8PF, 25000000, 0);  // 8pF для кристалла, 25 МГц частота, коррекция ppm.
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
 
   // Установка выходной частоты в соответствии с доп.настройами (см.выше)
   #ifdef IF_Offset
-    si5351.set_freq((variable_frequency_output* SI5351_FREQ_MULT) + reference_frequency_output, SI5351_CLK0);
+    si5351.set_freq((variable_frequency_output * SI5351_FREQ_MULT) + reference_frequency_output, SI5351_CLK0);
     si5351.set_freq( reference_frequency_output,SI5351_CLK2);
     
   #endif
