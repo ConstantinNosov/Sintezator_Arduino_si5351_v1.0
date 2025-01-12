@@ -12,10 +12,10 @@ LiquidCrystal_I2C lcd(0x27,16,2);
 Si5351 si5351; 
 Rotary encoder = Rotary(ENCODER_A, ENCODER_B); 
 
-volatile uint32_t variable_frequency_output = 1000000000ULL / SI5351_FREQ_MULT;  // Частота ГПД
-volatile uint32_t reference_frequency_output = 000000000ULL; // частота опорного генератора.
-volatile uint32_t LSB = 000000000ULL; // частота ОГ для "нижней" боковой. Настр. на ниж. скат КФ.
-volatile uint32_t USB = 000000000ULL; // частота ОГ для "верхней" боковой. Настр. на вверхн. скат КФ.
+volatile uint32_t variable_frequency_output = 710000000ULL / SI5351_FREQ_MULT;  // Частота ГПД
+volatile uint32_t reference_frequency_output = 886573800ULL; // частота опорного генератора (по умолчанию LSB)
+volatile uint32_t LSB = 886573800ULL; // частота ОГ для "нижней" боковой. Настр. на ниж. скат КФ.
+volatile uint32_t USB = 886873800ULL; // частота ОГ для "верхней" боковой. Настр. на вверхн. скат КФ.
 volatile uint32_t step_frequency = 100000;  // шаг перестройки, по умолчанию, при старте = 100 кГц
 boolean is_frequency_changed = 0; // Флаг изменения частоты
 String LSB_USB = "LSB"; // Переменная для отображения верхней или нижней боковой
@@ -194,7 +194,7 @@ void setup()
   lcd.begin(16, 2);   
   lcd.clear();
   Wire.begin();
-  si5351.init(SI5351_CRYSTAL_LOAD_8PF, 25000000, 0);  // 8pF для кристалла, 25 МГц частота, коррекция ppm.
+  si5351.init(SI5351_CRYSTAL_LOAD_8PF, 25000000, 150000);  // 8pF для кристалла, 25 МГц частота,коррекция частоты (тут -1.5кГц)
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
 
   // Установка выходной частоты в соответствии с доп.настройами (см.выше)
